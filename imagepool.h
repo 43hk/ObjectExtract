@@ -9,7 +9,11 @@ class ImagePool
 public:
     ImagePool();
     ~ImagePool();
-    Mat src, dst;
+    Mat src, dst, ref;
+    Mat newImage();
+    int METHOD;
+
+private:
     std::vector<Mat> imageQue;
 };
 

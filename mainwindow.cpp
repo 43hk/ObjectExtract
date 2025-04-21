@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+using namespace cv;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -9,8 +10,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->EditGroup->setVisible(false);
 
-    connect(ui->actionLoad, &QAction::triggered, this, &MainWindow::do_loadImage);
-    connect(ui->actionSave, &QAction::triggered, this, &MainWindow::do_saveImage);
+    connect(ui->actionLoad,     &QAction::triggered,    this, &MainWindow::do_loadImage);
+    connect(ui->actionSave,     &QAction::triggered,    this, &MainWindow::do_saveImage);
+    connect(ui->actionCapture,  &QAction::triggered,    this, &MainWindow::do_capture);
+    connect(ui->SearchButton,   &QPushButton::clicked,  this, &MainWindow::do_search);
+    connect(ui->LoadRefButton,  &QPushButton::clicked,  this, &MainWindow::do_loadRef);
 }
 
 MainWindow::~MainWindow()
@@ -33,8 +37,10 @@ void MainWindow::imageRefresh()
 
     // 获取 QLabel 当前尺寸
     QSize labelSize = ui->image->size();
+
     // 原始图片的宽高比=
     qreal imageAspectRatio = myImage.width() / (qreal)myImage.height();
+
     // 计算缩放后的尺寸，保持宽高比
     QSize scaledSize;
     if (imageAspectRatio > labelSize.width() / (qreal)labelSize.height())
@@ -61,11 +67,11 @@ void MainWindow::imageRefresh()
 void MainWindow::imageDisplay()
 {
     QImage myImage(
-        (const unsigned char*)(imageData->dst.data), // 数据指针
-        imageData->dst.cols,                         // 宽度
-        imageData->dst.rows,                         // 高度
-        imageData->dst.step,                         // 每行字节数
-        QImage::Format_RGB888                  // 像素格式
+        (const unsigned char*)(imageData->dst.data),
+        imageData->dst.cols,
+        imageData->dst.rows,
+        imageData->dst.step,
+        QImage::Format_RGB888
         );
     QPixmap pixmap = QPixmap::fromImage(myImage);
 
@@ -94,9 +100,9 @@ void MainWindow::do_loadImage()
             }
 
             cvtColor(imageData->src, imageData->src, COLOR_BGR2RGB);
-            imageData->dst = imageData->src;
-            imageDisplay();
+            imageData->dst = imageData->src.clone();
             ui->EditGroup->setVisible(true);
+            imageDisplay();
             qDebug() << "Selected file path:" << originalImagePath;
         }
         else {qDebug() << "Failed to load image.";}
@@ -116,19 +122,91 @@ void MainWindow::do_saveImage()
 
     if (!filename.isEmpty())
     {
-        // 根据用户选择的过滤器确定文件格式并更新文件名后缀
-        if (selectedFilter.contains("PNG"))
-            filename += ".png";
-        else if (selectedFilter.contains("JPEG") || selectedFilter.contains("JPG"))
-            filename += ".jpg";
-        else if (selectedFilter.contains("BMP"))
-            filename += ".bmp";
-
         bool saved = myImage.save(filename);
-
-        if (saved)
-            QMessageBox::information(this, tr("保存成功"), tr("图片已成功保存为: ") + filename);
-        else
+        if(!saved)
             QMessageBox::warning(this, tr("保存失败"), tr("无法保存图片，请检查文件路径和权限"));
     }
 }
+
+void MainWindow::do_capture()
+{
+    ui->image->clear();
+    VideoCapture cap(0);
+    if (!cap.isOpened()) {
+        std::cerr << "Error: Could not open camera." << std::endl;
+        return;
+    }
+
+    Mat frame;  // 用于存储捕获的图像
+    std::cout << "Press any key to capture an image..." << std::endl;
+
+    while (true)
+    {
+        cap >> frame;  // 从摄像头读取一帧
+        if (frame.empty())
+        {
+            std::cerr << "Error: Failed to capture image." << std::endl;
+            break;
+        }
+
+        cv::imshow("Camera Feed", frame);
+
+        // 等待用户按键捕获图像
+        if (cv::waitKey(30) >= 0) break;
+    }
+
+
+    cap.release();
+    cv::destroyAllWindows();
+
+    imageData->src = frame.clone();
+    cvtColor(imageData->src, imageData->src, COLOR_BGR2RGB);
+    imageData->dst = imageData->src.clone();
+    imageDisplay();
+    ui->EditGroup->setVisible(true);
+}
+
+void MainWindow::do_loadRef()
+{
+    originalImagePath = QFileDialog::getOpenFileName(this, tr("打开图片"), "", tr("图片文件 (*.png *.jpg *.jpeg *.bmp);;All Files (*)"));
+    if (!originalImagePath.isEmpty())
+    {
+        QPixmap pixmap(originalImagePath);
+        if (!pixmap.isNull())
+        {
+            imageData->ref = imread(originalImagePath.toStdString());
+            if(imageData->ref.empty())
+            {
+                qDebug() << "Error: Failed to load reference.";
+                return;
+            }
+            cv::imshow("Reference", imageData->ref);
+            cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
+            qDebug() << "Selected ref file path:" << originalImagePath;
+        }
+        else {qDebug() << "Failed to load ref.";}
+    }
+}
+
+void MainWindow::do_search()
+{
+    if      (ui->SQDIFButton->isChecked())  imageData->METHOD = TM_SQDIFF;
+    else if (ui->CCORRButton->isChecked())  imageData->METHOD = TM_CCORR;
+    else if (ui->CCOEFFButton->isChecked()) imageData->METHOD = TM_CCOEFF;
+
+    if (imageData->ref.empty())
+    {
+        std::cerr << "Error: ref is empty!" << std::endl;
+        return;
+    }
+    if (imageData->ref.cols > imageData->src.cols || imageData->ref.rows > imageData->src.rows)
+    {
+        std::cerr << "Error: Template image is larger than source image!" << std::endl;
+        return;
+    }
+
+    imageData->dst = CVFunction::objectSearch(imageData->src, imageData->ref, imageData->METHOD);
+    imageDisplay();
+}
+
+

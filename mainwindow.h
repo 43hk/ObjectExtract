@@ -6,6 +6,7 @@
 #include <QScreen>
 #include <QMessageBox>
 #include "imagepool.h"
+#include "cvfunction.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -27,6 +28,9 @@ public:
 private slots:
     void do_loadImage();
     void do_saveImage();
+    void do_capture();
+    void do_loadRef();
+    void do_search();
 
 private:
     Ui::MainWindow *ui;
