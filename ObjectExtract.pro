@@ -30,3 +30,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 INCLUDEPATH += C:\OpenCV_build\install\include
 LIBS += C:\OpenCV_build\install\x64\mingw\bin\libopencv_*.dll
+
+RESOURCES +=

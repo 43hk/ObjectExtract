@@ -12,6 +12,7 @@ public:
     CVFunction();
     ~CVFunction();
 
-    static Mat objectSearch(Mat src, Mat ref, int METHOD);
+    static Mat templateSearch(const Mat &src, const Mat &ref, int METHOD);
+    static Mat faceSearch(const Mat &src);
 };
 #endif // CVFUNCTION_H

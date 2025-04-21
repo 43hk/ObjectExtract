@@ -60,30 +60,30 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
-      <widget class="QWidget" name="Search">
+      <widget class="QWidget" name="Template">
        <attribute name="title">
-        <string>Search</string>
+        <string>Template</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="1" column="0">
-         <layout class="QGridLayout" name="gridLayout_3">
-          <item row="0" column="0">
-           <widget class="QPushButton" name="SearchButton">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QPushButton" name="SearchButton1">
             <property name="text">
              <string>Search</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QPushButton" name="LoadRefButton">
+          <item>
+           <widget class="QPushButton" name="LoadRefButton1">
             <property name="text">
              <string>Load Reference</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
+          <item>
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
              <widget class="QRadioButton" name="SQDIFButton">
@@ -129,6 +129,38 @@
        <attribute name="title">
         <string>Face</string>
        </attribute>
+       <widget class="QWidget" name="verticalLayoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>9</y>
+          <width>281</width>
+          <height>621</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QPushButton" name="SearchFaceButton">
+           <property name="text">
+            <string>Search</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
       </widget>
      </widget>
     </item>

@@ -10,11 +10,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->EditGroup->setVisible(false);
 
-    connect(ui->actionLoad,     &QAction::triggered,    this, &MainWindow::do_loadImage);
-    connect(ui->actionSave,     &QAction::triggered,    this, &MainWindow::do_saveImage);
-    connect(ui->actionCapture,  &QAction::triggered,    this, &MainWindow::do_capture);
-    connect(ui->SearchButton,   &QPushButton::clicked,  this, &MainWindow::do_search);
-    connect(ui->LoadRefButton,  &QPushButton::clicked,  this, &MainWindow::do_loadRef);
+    connect(ui->actionLoad,         &QAction::triggered,    this, &MainWindow::do_loadImage);
+    connect(ui->actionSave,         &QAction::triggered,    this, &MainWindow::do_saveImage);
+    connect(ui->actionCapture,      &QAction::triggered,    this, &MainWindow::do_capture);
+    connect(ui->LoadRefButton1,     &QPushButton::clicked,  this, &MainWindow::do_loadRef);
+    connect(ui->SearchButton1,      &QPushButton::clicked,  this, &MainWindow::do_templateSearch);
+    connect(ui->SearchFaceButton,   &QPushButton::clicked,  this, &MainWindow::do_faceSearch);
 }
 
 MainWindow::~MainWindow()
@@ -25,43 +26,7 @@ MainWindow::~MainWindow()
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    imageRefresh(); // 窗口大小变化时更新图片显示
-}
-
-void MainWindow::imageRefresh()
-{
-    myImage = QImage((const unsigned char*)(imageData->dst.data),
-                     imageData->dst.cols, imageData->dst.rows,
-                     imageData->dst.step,
-                     QImage::Format_RGB888).copy();
-
-    // 获取 QLabel 当前尺寸
-    QSize labelSize = ui->image->size();
-
-    // 原始图片的宽高比=
-    qreal imageAspectRatio = myImage.width() / (qreal)myImage.height();
-
-    // 计算缩放后的尺寸，保持宽高比
-    QSize scaledSize;
-    if (imageAspectRatio > labelSize.width() / (qreal)labelSize.height())
-    {
-        // 如果图片更“扁”，以宽度为基准缩放
-        scaledSize.setWidth(labelSize.width());
-        scaledSize.setHeight(labelSize.width() / imageAspectRatio);
-    }
-    else
-    {
-        // 图片更“窄”，以高度为基准缩放
-        scaledSize.setHeight(labelSize.height());
-        scaledSize.setWidth(labelSize.height() * imageAspectRatio);
-    }
-
-    // 确保缩放后的尺寸不超过 QLabel 的大小
-    scaledSize = scaledSize.boundedTo(labelSize);
-
-    QPixmap scaledPixmap = QPixmap::fromImage(myImage).scaled(scaledSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
-    ui->image->setPixmap(scaledPixmap);
+    imageDisplay(); // 窗口大小变化时更新图片显示
 }
 
 void MainWindow::imageDisplay()
@@ -188,7 +153,7 @@ void MainWindow::do_loadRef()
     }
 }
 
-void MainWindow::do_search()
+void MainWindow::do_templateSearch()
 {
     if      (ui->SQDIFButton->isChecked())  imageData->METHOD = TM_SQDIFF;
     else if (ui->CCORRButton->isChecked())  imageData->METHOD = TM_CCORR;
@@ -205,8 +170,19 @@ void MainWindow::do_search()
         return;
     }
 
-    imageData->dst = CVFunction::objectSearch(imageData->src, imageData->ref, imageData->METHOD);
+    ui->image->clear();
+
+    imageData->dst = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->METHOD);
     imageDisplay();
 }
+
+void MainWindow::do_faceSearch()
+{
+    ui->image->clear();
+    imageData->dst = CVFunction::faceSearch(imageData->src);
+    imageDisplay();
+}
+
+
 
 

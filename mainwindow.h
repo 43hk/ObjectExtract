@@ -22,7 +22,6 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void resizeEvent(QResizeEvent *event);
-    void imageRefresh();
     void imageDisplay();
 
 private slots:
@@ -30,7 +29,8 @@ private slots:
     void do_saveImage();
     void do_capture();
     void do_loadRef();
-    void do_search();
+    void do_templateSearch();
+    void do_faceSearch();
 
 private:
     Ui::MainWindow *ui;
