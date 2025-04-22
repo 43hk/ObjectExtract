@@ -76,6 +76,14 @@ void MainWindow::do_loadImage()
 
 void MainWindow::do_saveImage()
 {
+    QImage cutExport(
+        (const unsigned char*)(imageData->cut.data),
+        imageData->cut.cols,
+        imageData->cut.rows,
+        imageData->cut.step,
+        QImage::Format_RGB888
+        );
+
     QString baseName = QFileInfo(originalImagePath).completeBaseName(); // 获取不带扩展名的文件名
 
     // 设置过滤器以显示不同格式的图片类型
@@ -87,7 +95,7 @@ void MainWindow::do_saveImage()
 
     if (!filename.isEmpty())
     {
-        bool saved = myImage.save(filename);
+        bool saved =cutExport.save(filename);
         if(!saved)
             QMessageBox::warning(this, tr("保存失败"), tr("无法保存图片，请检查文件路径和权限"));
     }
@@ -133,6 +141,8 @@ void MainWindow::do_capture()
 
 void MainWindow::do_loadRef()
 {
+    imageData->dst = imageData->src.clone();
+
     originalImagePath = QFileDialog::getOpenFileName(this, tr("打开图片"), "", tr("图片文件 (*.png *.jpg *.jpeg *.bmp);;All Files (*)"));
     if (!originalImagePath.isEmpty())
     {
@@ -155,6 +165,9 @@ void MainWindow::do_loadRef()
 
 void MainWindow::do_templateSearch()
 {
+    imageData->dst = imageData->src.clone();
+    imageData->cut = imageData->src.clone();
+
     if      (ui->SQDIFButton->isChecked())  imageData->METHOD = TM_SQDIFF;
     else if (ui->CCORRButton->isChecked())  imageData->METHOD = TM_CCORR;
     else if (ui->CCOEFFButton->isChecked()) imageData->METHOD = TM_CCOEFF;
@@ -171,15 +184,22 @@ void MainWindow::do_templateSearch()
     }
 
     ui->image->clear();
-
-    imageData->dst = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->METHOD);
+    imageData->cut = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->dst, imageData->METHOD);
+    Mat cutShow;
+    cvtColor(imageData->cut, cutShow, COLOR_RGB2BGR);
+    imshow("Result", cutShow);
     imageDisplay();
 }
 
 void MainWindow::do_faceSearch()
 {
+    imageData->dst = imageData->src.clone();
+    imageData->cut = imageData->src.clone();
     ui->image->clear();
-    imageData->dst = CVFunction::faceSearch(imageData->src);
+    imageData->cut = CVFunction::faceSearch(imageData->src, imageData->dst);
+    Mat cutShow;
+    cvtColor(imageData->cut, cutShow, COLOR_RGB2BGR);
+    imshow("Result", cutShow);
     imageDisplay();
 }
 

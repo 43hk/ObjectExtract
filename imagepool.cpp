@@ -5,6 +5,7 @@ ImagePool::ImagePool()
     Mat src = newImage();
     Mat dst = newImage();
     Mat ref = newImage();
+    Mat cut = newImage();
 }
 
 ImagePool::~ImagePool() {}

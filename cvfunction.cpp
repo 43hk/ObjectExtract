@@ -5,11 +5,9 @@ CVFunction::CVFunction() {}
 
 CVFunction::~CVFunction() {}
 
-Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, int METHOD)
+Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, int METHOD)
 {
     Mat imgResult;      // 存储匹配结果
-    Mat imgDisplay;     // 用于显示最终结果
-    src.copyTo(imgDisplay); // 将源图像复制到 imgDisplay
 
     // 创建匹配结果矩阵
     int resCols = src.cols - ref.cols + 1;
@@ -34,48 +32,61 @@ Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, int METHOD)
         matchLoc = maxLoc; // 其他方法取最大值
 
     // 在源图像上绘制矩形框
-    rectangle(imgDisplay, matchLoc, Point(matchLoc.x + ref.cols, matchLoc.y + ref.rows), Scalar(0, 255, 0), 2); // 绿色矩形框
+    rectangle(dst, matchLoc, Point(matchLoc.x + ref.cols, matchLoc.y + ref.rows), Scalar(0, 255, 0), 2); // 绿色矩形框
 
-    // 返回带有标注的图像
-    return imgDisplay;
+    // 剪裁出匹配区域
+    Rect matchedRegion(matchLoc, Size(ref.cols, ref.rows)); // 定义剪裁区域
+    Mat croppedRegion = src(matchedRegion);                // 从源图像中剪裁出区域
+
+    // 返回剪裁出的区域
+    return croppedRegion;
 }
 
-Mat CVFunction::faceSearch(const Mat &src)
+Mat CVFunction::faceSearch(const Mat &src, Mat &dst)
 {
-    Mat imgDisplay = src.clone();
+    Mat imgCut = src.clone(); // 用于显示最终结果
 
     // 初始化人脸和眼睛检测器
     CascadeClassifier face_detector;
     CascadeClassifier eyes_detector;
 
-
     // 检查分类器是否加载成功
     if (!face_detector.load("release/haarcascade_frontalface_alt.xml"))
     {
         std::cerr << "Error: Could not load face detector." << std::endl;
-        return imgDisplay;
+        return imgCut; // 返回原始图像
     }
     if (!eyes_detector.load("release/haarcascade_eye_tree_eyeglasses.xml"))
     {
         std::cerr << "Error: Could not load eyes detector." << std::endl;
-        return imgDisplay;
+        return imgCut; // 返回原始图像
     }
 
     // 转换为灰度图并进行直方图均衡化
     Mat imgGray;
-    cvtColor(imgDisplay, imgGray, COLOR_BGR2GRAY);
+    cvtColor(src, imgGray, COLOR_BGR2GRAY);
     equalizeHist(imgGray, imgGray);
 
     // 检测人脸
     std::vector<Rect> faces;
     face_detector.detectMultiScale(imgGray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
-    // 遍历检测到的人脸
+    // 如果未检测到人脸，直接返回原始图像
+    if (faces.empty())
+    {
+        std::cerr << "No faces detected." << std::endl;
+        return imgCut;
+    }
+
+    // 剪裁出第一张人脸区域
+    Rect faceRegion = faces[0]; // 取第一个检测到的人脸
+    Mat croppedFace = src(faceRegion); // 剪裁出人脸区域
+
+    // 在 dst 图像上绘制标记（使用矩形框）
     for (size_t i = 0; i < faces.size(); i++)
     {
-        // 绘制椭圆标记人脸
-        Point center(faces[i].x + faces[i].width * 0.5, faces[i].y + faces[i].height * 0.5);
-        ellipse(imgDisplay, center, Size(faces[i].width * 0.5, faces[i].height * 0.5), 0, 0, 360, Scalar(255, 0, 255), 4);
+        // 绘制矩形框标记人脸
+        rectangle(dst, faces[i], Scalar(0, 255, 0), 2); // 绿色矩形框
 
         // 在人脸区域内检测眼睛
         Mat faceROI = imgGray(faces[i]);
@@ -85,18 +96,16 @@ Mat CVFunction::faceSearch(const Mat &src)
         // 遍历检测到的眼睛
         for (size_t j = 0; j < eyes.size(); j++)
         {
-            // 计算眼睛中心点和半径
-            Point eye_center(faces[i].x + eyes[j].x + eyes[j].width * 0.5,
-                             faces[i].y + eyes[j].y + eyes[j].height * 0.5);
-            int radius = cvRound((eyes[j].width + eyes[j].height) * 0.25);
+            // 计算眼睛的矩形框位置
+            Rect eyeRect(faces[i].x + eyes[j].x, faces[i].y + eyes[j].y, eyes[j].width, eyes[j].height);
 
-            // 绘制圆形标记眼睛
-            circle(imgDisplay, eye_center, radius, Scalar(255, 0, 0), 4);
+            // 绘制矩形框标记眼睛
+            rectangle(dst, eyeRect, Scalar(255, 0, 0), 2); // 蓝色矩形框
         }
     }
 
-    // 返回处理后的图像
-    return imgDisplay;
+    // 返回剪裁出的人脸区域
+    return croppedFace;
 }
 
 

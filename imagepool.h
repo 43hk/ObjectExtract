@@ -9,7 +9,7 @@ class ImagePool
 public:
     ImagePool();
     ~ImagePool();
-    Mat src, dst, ref;
+    Mat src, dst, ref, cut;
     Mat newImage();
     int METHOD = TM_SQDIFF;
 
