@@ -5,7 +5,7 @@ CVFunction::CVFunction() {}
 
 CVFunction::~CVFunction() {}
 
-Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, int METHOD)
+Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, Method METHOD)
 {
     Mat imgResult;      // 存储匹配结果
 
@@ -26,7 +26,7 @@ Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, int MET
     minMaxLoc(imgResult, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
     // 根据匹配方法选择最佳匹配位置
-    if (METHOD == TM_SQDIFF || METHOD == TM_SQDIFF_NORMED)
+    if (METHOD == Method::TM_SQDIFF || METHOD == Method::TM_SQDIFF_NORMED)
         matchLoc = minLoc; // 平方差匹配法取最小值
     else
         matchLoc = maxLoc; // 其他方法取最大值
@@ -41,6 +41,78 @@ Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, int MET
     // 返回剪裁出的区域
     return croppedRegion;
 }
+
+void CVFunction::track(const Mat &ref)
+{
+    // 初始化摄像头
+    cv::VideoCapture cap(0);
+    if (!cap.isOpened())
+    {
+        std::cerr << "Error: Could not open camera" << std::endl;
+        return;
+    }
+
+    // ORB 特征检测器和描述符
+    cv::Ptr<cv::ORB> orb = cv::ORB::create();
+    cv::BFMatcher bf(cv::NORM_HAMMING, true);
+
+    // 计算参考图像的关键点和描述符
+    std::vector<cv::KeyPoint> kp_ref;
+    Mat des_ref;
+    orb->detectAndCompute(ref, cv::Mat(), kp_ref, des_ref);
+
+    while (true)
+    {
+        Mat frame;
+        cap >> frame;
+        if (frame.empty()) break;
+
+        // 检测当前帧的关键点和描述符
+        std::vector<cv::KeyPoint> kp_frame;
+        Mat des_frame;
+        orb->detectAndCompute(frame, cv::Mat(), kp_frame, des_frame);
+
+        if (!des_frame.empty() && !des_ref.empty()) {
+            // 匹配特征点
+            std::vector<cv::DMatch> matches;
+            bf.match(des_ref, des_frame, matches);
+            std::sort(matches.begin(), matches.end(), [](const cv::DMatch& a, const cv::DMatch& b) {
+                    return a.distance < b.distance;
+            });
+
+            // 提取匹配点的位置
+            std::vector<cv::Point2f> src_pts, dst_pts;
+            for (size_t i = 0; i < matches.size(); ++i)
+            {
+                src_pts.push_back(kp_ref[matches[i].queryIdx].pt);
+                dst_pts.push_back(kp_frame[matches[i].trainIdx].pt);
+            }
+
+            if (src_pts.size() > 4)
+            {
+                // 计算单应性矩阵并绘制边界框
+                Mat H = cv::findHomography(src_pts, dst_pts, cv::RANSAC, 5.0);
+                std::vector<cv::Point2f> pts = {cv::Point2f(0, 0), cv::Point2f(0, ref.rows - 1),
+                                                    cv::Point2f(ref.cols - 1, ref.rows - 1), cv::Point2f(ref.cols - 1, 0)};
+                std::vector<cv::Point2f> dst;
+                cv::perspectiveTransform(pts, dst, H);
+                std::vector<cv::Point> dst_int;
+                for (const auto& pt : dst) dst_int.emplace_back(static_cast<int>(pt.x), static_cast<int>(pt.y));
+                cv::polylines(frame, dst_int, true, cv::Scalar(0, 255, 0), 3);
+            }
+        }
+
+        // 显示结果
+        imshow("ORB Tracking", frame);
+        if (cv::waitKey(30) >= 0) break;
+    }
+
+
+    // 释放资源
+    cap.release();
+    destroyAllWindows();
+}
+
 
 Mat CVFunction::faceSearch(const Mat &src, Mat &dst)
 {

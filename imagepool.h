@@ -11,7 +11,6 @@ public:
     ~ImagePool();
     Mat src, dst, ref, cut;
     Mat newImage();
-    int METHOD = TM_SQDIFF;
 
 private:
     std::vector<Mat> imageQue;

@@ -28,7 +28,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 
-INCLUDEPATH += C:\OpenCV_build\install\include
-LIBS += C:\OpenCV_build\install\x64\mingw\bin\libopencv_*.dll
+INCLUDEPATH += C:\OpenCV\build\include
+LIBS += C:\OpenCV\build\x64\vc16\lib\opencv_world4110.lib
 
 RESOURCES +=

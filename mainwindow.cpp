@@ -10,12 +10,18 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->EditGroup->setVisible(false);
 
-    connect(ui->actionLoad,         &QAction::triggered,    this, &MainWindow::do_loadImage);
-    connect(ui->actionSave,         &QAction::triggered,    this, &MainWindow::do_saveImage);
-    connect(ui->actionCapture,      &QAction::triggered,    this, &MainWindow::do_capture);
-    connect(ui->LoadRefButton1,     &QPushButton::clicked,  this, &MainWindow::do_loadRef);
-    connect(ui->SearchButton1,      &QPushButton::clicked,  this, &MainWindow::do_templateSearch);
-    connect(ui->SearchFaceButton,   &QPushButton::clicked,  this, &MainWindow::do_faceSearch);
+    // File
+    connect(ui->actionLoad,         &QAction::triggered, this, &MainWindow::do_loadImage);
+    connect(ui->actionSave,         &QAction::triggered, this, &MainWindow::do_saveImage);
+    connect(ui->actionReference,    &QAction::triggered, this, &MainWindow::do_loadRef);
+    // Caputure
+    connect(ui->actionReference_2,  &QAction::triggered, this, &MainWindow::do_loadRefFromCam);
+    connect(ui->actionMain,         &QAction::triggered, this, &MainWindow::do_loadImageFromCam);
+
+
+    connect(ui->SearchButton,       &QPushButton::clicked, this, &MainWindow::do_templateSearch);
+    connect(ui->StartTrackingButton, &QPushButton::clicked, this, &MainWindow::do_startTracing);
+    connect(ui->SearchFaceButton,   &QPushButton::clicked, this, &MainWindow::do_faceSearch);
 }
 
 MainWindow::~MainWindow()
@@ -101,17 +107,77 @@ void MainWindow::do_saveImage()
     }
 }
 
-void MainWindow::do_capture()
+void MainWindow::do_loadRef()
 {
-    ui->image->clear();
+    imageData->dst = imageData->src.clone();
+
+    originalImagePath = QFileDialog::getOpenFileName(this, tr("打开图片"), "", tr("图片文件 (*.png *.jpg *.jpeg *.bmp);;All Files (*)"));
+    if (!originalImagePath.isEmpty())
+    {
+        QPixmap pixmap(originalImagePath);
+        if (!pixmap.isNull())
+        {
+            imageData->ref = imread(originalImagePath.toStdString());
+            if(imageData->ref.empty())
+            {
+                qDebug() << "Error: Failed to load reference.";
+                return;
+            }
+            cv::imshow("Reference", imageData->ref);
+            cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
+            qDebug() << "Selected ref file path:" << originalImagePath;
+        }
+        else {qDebug() << "Failed to load ref.";}
+    }
+}
+
+void MainWindow::do_loadRefFromCam()
+{
+    imageData->dst = imageData->src.clone();
+
     VideoCapture cap(0);
-    if (!cap.isOpened()) {
+    if (!cap.isOpened())
+    {
         std::cerr << "Error: Could not open camera." << std::endl;
         return;
     }
 
     Mat frame;  // 用于存储捕获的图像
-    std::cout << "Press any key to capture an image..." << std::endl;
+
+    while (true)
+    {
+        cap >> frame;  // 从摄像头读取一帧
+        if (frame.empty())
+        {
+            std::cerr << "Error: Failed to capture image." << std::endl;
+            break;
+        }
+        cv::imshow("Camera Feed", frame);
+        // 等待用户按键捕获图像
+        if (cv::waitKey(30) >= 0) break;
+    }
+
+
+    cap.release();
+    cv::destroyAllWindows();
+
+    imageData->ref = frame.clone();
+    imshow("Reference", imageData->ref);
+    cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
+    ui->EditGroup->setVisible(true);
+}
+
+void MainWindow::do_loadImageFromCam()
+{
+    ui->image->clear();
+    VideoCapture cap(0);
+    if (!cap.isOpened())
+    {
+        std::cerr << "Error: Could not open camera." << std::endl;
+        return;
+    }
+
+    Mat frame;  // 用于存储捕获的图像
 
     while (true)
     {
@@ -139,38 +205,15 @@ void MainWindow::do_capture()
     ui->EditGroup->setVisible(true);
 }
 
-void MainWindow::do_loadRef()
-{
-    imageData->dst = imageData->src.clone();
-
-    originalImagePath = QFileDialog::getOpenFileName(this, tr("打开图片"), "", tr("图片文件 (*.png *.jpg *.jpeg *.bmp);;All Files (*)"));
-    if (!originalImagePath.isEmpty())
-    {
-        QPixmap pixmap(originalImagePath);
-        if (!pixmap.isNull())
-        {
-            imageData->ref = imread(originalImagePath.toStdString());
-            if(imageData->ref.empty())
-            {
-                qDebug() << "Error: Failed to load reference.";
-                return;
-            }
-            cv::imshow("Reference", imageData->ref);
-            cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
-            qDebug() << "Selected ref file path:" << originalImagePath;
-        }
-        else {qDebug() << "Failed to load ref.";}
-    }
-}
-
 void MainWindow::do_templateSearch()
 {
     imageData->dst = imageData->src.clone();
     imageData->cut = imageData->src.clone();
 
-    if      (ui->SQDIFButton->isChecked())  imageData->METHOD = TM_SQDIFF;
-    else if (ui->CCORRButton->isChecked())  imageData->METHOD = TM_CCORR;
-    else if (ui->CCOEFFButton->isChecked()) imageData->METHOD = TM_CCOEFF;
+    Method METHOD;
+    if      (ui->CCORRButton->isChecked())  METHOD = Method::TM_CCORR;
+    else if (ui->CCOEFFButton->isChecked()) METHOD = Method::TM_CCOEFF;
+    else    METHOD = Method::TM_SQDIFF;
 
     if (imageData->ref.empty())
     {
@@ -184,11 +227,16 @@ void MainWindow::do_templateSearch()
     }
 
     ui->image->clear();
-    imageData->cut = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->dst, imageData->METHOD);
+    imageData->cut = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->dst, METHOD);
     Mat cutShow;
     cvtColor(imageData->cut, cutShow, COLOR_RGB2BGR);
     imshow("Result", cutShow);
     imageDisplay();
+}
+
+void MainWindow::do_startTracing()
+{
+    CVFunction::track(imageData->ref);
 }
 
 void MainWindow::do_faceSearch()

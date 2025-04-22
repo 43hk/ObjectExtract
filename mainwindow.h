@@ -27,9 +27,11 @@ public:
 private slots:
     void do_loadImage();
     void do_saveImage();
-    void do_capture();
     void do_loadRef();
+    void do_loadRefFromCam();
+    void do_loadImageFromCam();
     void do_templateSearch();
+    void do_startTracing();
     void do_faceSearch();
 
 private:
