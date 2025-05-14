@@ -7,17 +7,21 @@ CVFunction::~CVFunction() {}
 
 Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, Method METHOD)
 {
-    Mat imgResult;      // 存储匹配结果
+    // 将源图像和参考图像转换为灰度图像
+    Mat srcGray, refGray;
+    cvtColor(src, srcGray, COLOR_RGB2GRAY);
+    cvtColor(ref, refGray, COLOR_RGB2GRAY);
 
     // 创建匹配结果矩阵
-    int resCols = src.cols - ref.cols + 1;
-    int resRows = src.rows - ref.rows + 1;
+    Mat imgResult;
+    int resCols = srcGray.cols - refGray.cols + 1;
+    int resRows = srcGray.rows - refGray.rows + 1;
     imgResult.create(resRows, resCols, CV_32FC1);
 
     // 执行模板匹配
-    matchTemplate(src, ref, imgResult, METHOD);
+    matchTemplate(srcGray, refGray, imgResult, METHOD);
 
-    // 归一化匹配结果
+    // 归一化匹配结果（可选）
     normalize(imgResult, imgResult, 0, 1, NORM_MINMAX, -1, Mat());
 
     // 找到最佳匹配位置
@@ -31,10 +35,10 @@ Mat CVFunction::templateSearch(const Mat &src, const Mat &ref, Mat &dst, Method 
     else
         matchLoc = maxLoc; // 其他方法取最大值
 
-    // 在源图像上绘制矩形框
+    // 在源图像上绘制矩形框（注意：这里使用原始彩色图像进行绘制，而不是灰度图像）
     rectangle(dst, matchLoc, Point(matchLoc.x + ref.cols, matchLoc.y + ref.rows), Scalar(0, 255, 0), 2); // 绿色矩形框
 
-    // 剪裁出匹配区域
+    // 剪裁出匹配区域（从原始彩色图像中剪裁）
     Rect matchedRegion(matchLoc, Size(ref.cols, ref.rows)); // 定义剪裁区域
     Mat croppedRegion = src(matchedRegion);                // 从源图像中剪裁出区域
 
@@ -136,7 +140,7 @@ Mat CVFunction::faceSearch(const Mat &src, Mat &dst)
 
     // 转换为灰度图并进行直方图均衡化
     Mat imgGray;
-    cvtColor(src, imgGray, COLOR_BGR2GRAY);
+    cvtColor(src, imgGray, COLOR_RGB2GRAY);
     equalizeHist(imgGray, imgGray);
 
     // 检测人脸
@@ -179,6 +183,114 @@ Mat CVFunction::faceSearch(const Mat &src, Mat &dst)
     // 返回剪裁出的人脸区域
     return croppedFace;
 }
+
+
+Mat CVFunction::edgeDetection(const Mat& src, Mat& dst, int kernel_size)
+{
+    // 转换为灰度图
+    Mat srcGray;
+    cvtColor(src, srcGray, COLOR_RGB2GRAY);
+
+    // 执行边缘检测（Sobel）
+    Mat grad_x, grad_y;
+    Sobel(srcGray, grad_x, CV_32F, 1, 0, kernel_size);
+    Sobel(srcGray, grad_y, CV_32F, 0, 1, kernel_size);
+
+    // 取绝对值并合并梯度
+    Mat abs_grad_x, abs_grad_y, edges;
+    convertScaleAbs(grad_x, abs_grad_x);
+    convertScaleAbs(grad_y, abs_grad_y);
+    addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, edges);
+
+    // 使用Canny算法从Sobel结果中提取边缘（转化为二值图像）
+    Mat canny_output;
+    Canny(edges, canny_output, 50, 150); // 调整阈值以适应你的需求
+
+    // 寻找轮廓
+    std::vector<std::vector<Point>> contours;
+    std::vector<Vec4i> hierarchy;
+    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+
+    if (contours.empty()) {
+        // 如果没有找到任何轮廓，则复制原始图像到dst或者采取其他措施
+        src.copyTo(dst);
+        return src;
+    }
+
+    // 寻找最大的轮廓（假设是我们感兴趣的区域）
+    double maxArea = 0;
+    int maxIdx = 0;
+    for (int i = 0; i < contours.size(); i++) {
+        double area = contourArea(contours[i]);
+        if (area > maxArea) {
+            maxArea = area;
+            maxIdx = i;
+        }
+    }
+
+    // 设置颜色和厚度
+    Scalar color(0, 255, 0); // 绿色
+    int thickness = 2;
+
+    // 在dst图像上绘制最大轮廓
+    drawContours(dst, contours, maxIdx, color, thickness);
+
+    // 如果需要剪裁出感兴趣区域，可以在绘制轮廓后进行
+    Rect boundingBox = boundingRect(contours[maxIdx]);
+    Mat croppedImage = src(boundingBox);
+
+    return croppedImage;
+}
+
+Mat CVFunction::adaptiveThresholding(const Mat& src, Mat& dst,
+                         int blockSize, double C,
+                         int adaptiveMethod ,
+                         int thresholdType)
+{
+    // 转换为灰度图
+    Mat srcGray;
+    cvtColor(src, srcGray, COLOR_RGB2GRAY);
+
+    // 执行自适应阈值处理
+    Mat binary;
+    adaptiveThreshold(srcGray, binary, 255, adaptiveMethod, thresholdType, blockSize, C);
+
+    // 寻找轮廓
+    std::vector<std::vector<Point>> contours;
+    std::vector<Vec4i> hierarchy;
+    findContours(binary, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+
+    if (contours.empty()) {
+        src.copyTo(dst);
+        return src;
+    }
+
+    // 寻找最大的轮廓（假设是我们感兴趣的区域）
+    double maxArea = 0;
+    int maxIdx = 0;
+    for (size_t i = 0; i < contours.size(); i++) {
+        double area = contourArea(contours[i]);
+        if (area > maxArea) {
+            maxArea = area;
+            maxIdx = i;
+        }
+    }
+
+    // 获取边界框
+    Rect boundingBox = boundingRect(contours[maxIdx]);
+
+    // 根据边界框剪裁图像
+    Mat croppedImage = src(boundingBox).clone();
+
+    // 在dst图像上绘制最大轮廓
+    src.copyTo(dst); // 确保dst是src的一个副本
+    Scalar color(0, 255, 0); // 绿色
+    int thickness = 2;
+    drawContours(dst, contours, maxIdx, color, thickness);
+
+    return croppedImage;
+}
+
 
 
 

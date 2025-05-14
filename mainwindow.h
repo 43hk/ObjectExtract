@@ -23,6 +23,9 @@ public:
     ~MainWindow();
     void resizeEvent(QResizeEvent *event);
     void imageDisplay();
+    void refDisplay();
+
+    bool isRGB = true;
 
 private slots:
     void do_loadImage();
@@ -33,12 +36,13 @@ private slots:
     void do_templateSearch();
     void do_startTracing();
     void do_faceSearch();
+    void do_edgeDetection();
+    void do_thresholding();
 
 private:
     Ui::MainWindow *ui;
     std::unique_ptr<ImagePool> imageData;
 
     QString originalImagePath;
-    QImage myImage;
 };
 #endif // MAINWINDOW_H

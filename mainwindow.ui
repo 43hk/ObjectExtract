@@ -60,7 +60,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="Template">
        <attribute name="title">
@@ -114,6 +114,57 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="Split">
+       <attribute name="title">
+        <string>Split</string>
+       </attribute>
+       <widget class="QWidget" name="verticalLayoutWidget_3">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>9</y>
+          <width>281</width>
+          <height>621</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <widget class="QPushButton" name="EdgeDetectionButton">
+           <property name="text">
+            <string>EdgeDetection(Sobel)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="ThresholdingButton">
+           <property name="text">
+            <string>Thresholding</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="SearchFaceButton">
+           <property name="text">
+            <string>FaceSearch</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
       <widget class="QWidget" name="Track">
        <attribute name="title">
         <string>Track</string>
@@ -151,24 +202,30 @@
         </layout>
        </widget>
       </widget>
-      <widget class="QWidget" name="Face">
+      <widget class="QWidget" name="Ref">
        <attribute name="title">
-        <string>Face</string>
+        <string>Ref</string>
        </attribute>
        <widget class="QWidget" name="verticalLayoutWidget">
         <property name="geometry">
          <rect>
-          <x>9</x>
-          <y>9</y>
+          <x>10</x>
+          <y>10</y>
           <width>281</width>
-          <height>621</height>
+          <height>611</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
          <item>
-          <widget class="QPushButton" name="SearchFaceButton">
+          <widget class="QLabel" name="imageRef">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
-            <string>Search</string>
+            <string/>
            </property>
           </widget>
          </item>

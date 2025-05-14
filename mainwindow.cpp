@@ -20,8 +20,11 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     connect(ui->SearchButton,       &QPushButton::clicked, this, &MainWindow::do_templateSearch);
-    connect(ui->StartTrackingButton, &QPushButton::clicked, this, &MainWindow::do_startTracing);
+    connect(ui->StartTrackingButton,&QPushButton::clicked, this, &MainWindow::do_startTracing);
     connect(ui->SearchFaceButton,   &QPushButton::clicked, this, &MainWindow::do_faceSearch);
+
+    connect(ui->EdgeDetectionButton,&QPushButton::clicked, this, &MainWindow::do_edgeDetection);
+    connect(ui->ThresholdingButton, &QPushButton::clicked, this, &MainWindow::do_thresholding);
 }
 
 MainWindow::~MainWindow()
@@ -33,6 +36,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
     imageDisplay(); // 窗口大小变化时更新图片显示
+    refDisplay();
 }
 
 void MainWindow::imageDisplay()
@@ -51,6 +55,23 @@ void MainWindow::imageDisplay()
     QPixmap scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
     ui->image->setPixmap(scaledPixmap);
+}
+
+void MainWindow::refDisplay()
+{
+    QImage myImage(
+        (const unsigned char*)(imageData->ref.data),
+        imageData->ref.cols,
+        imageData->ref.rows,
+        imageData->ref.step,
+        QImage::Format_RGB888
+        );
+    QPixmap pixmap = QPixmap::fromImage(myImage);
+
+    // 缩放图片以适应 QLabel 的大小
+    QSize labelSize = ui->imageRef->size(); // 获取 QLabel 的大小
+    QPixmap scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    ui->imageRef->setPixmap(scaledPixmap);
 }
 
 void MainWindow::do_loadImage()
@@ -123,12 +144,15 @@ void MainWindow::do_loadRef()
                 qDebug() << "Error: Failed to load reference.";
                 return;
             }
-            cv::imshow("Reference", imageData->ref);
+            ui->EditGroup->setVisible(true);
             cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
+            refDisplay();
             qDebug() << "Selected ref file path:" << originalImagePath;
         }
         else {qDebug() << "Failed to load ref.";}
     }
+
+
 }
 
 void MainWindow::do_loadRefFromCam()
@@ -164,6 +188,8 @@ void MainWindow::do_loadRefFromCam()
     imageData->ref = frame.clone();
     imshow("Reference", imageData->ref);
     cvtColor(imageData->ref, imageData->ref, COLOR_BGR2RGB);
+
+    refDisplay();
     ui->EditGroup->setVisible(true);
 }
 
@@ -196,19 +222,22 @@ void MainWindow::do_loadImageFromCam()
 
 
     cap.release();
-    cv::destroyAllWindows();
+    destroyAllWindows();
 
     imageData->src = frame.clone();
     cvtColor(imageData->src, imageData->src, COLOR_BGR2RGB);
     imageData->dst = imageData->src.clone();
-    imageDisplay();
+
     ui->EditGroup->setVisible(true);
+    imageDisplay();
 }
 
 void MainWindow::do_templateSearch()
 {
+    if(imageData->src.empty()) return;
     imageData->dst = imageData->src.clone();
     imageData->cut = imageData->src.clone();
+    ui->image->clear();
 
     Method METHOD;
     if      (ui->CCORRButton->isChecked())  METHOD = Method::TM_CCORR;
@@ -227,11 +256,11 @@ void MainWindow::do_templateSearch()
     }
 
     ui->image->clear();
-    imageData->cut = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->dst, METHOD);
-    Mat cutShow;
-    cvtColor(imageData->cut, cutShow, COLOR_RGB2BGR);
-    imshow("Result", cutShow);
+
+    Mat cutRes;
+    cutRes = CVFunction::templateSearch(imageData->src, imageData->ref, imageData->dst, METHOD);
     imageDisplay();
+    imageData->cut = cutRes.clone();
 }
 
 void MainWindow::do_startTracing()
@@ -241,14 +270,41 @@ void MainWindow::do_startTracing()
 
 void MainWindow::do_faceSearch()
 {
+    if(imageData->src.empty()) return;
     imageData->dst = imageData->src.clone();
     imageData->cut = imageData->src.clone();
     ui->image->clear();
-    imageData->cut = CVFunction::faceSearch(imageData->src, imageData->dst);
-    Mat cutShow;
-    cvtColor(imageData->cut, cutShow, COLOR_RGB2BGR);
-    imshow("Result", cutShow);
+
+    Mat cutRes;
+    cutRes = CVFunction::faceSearch(imageData->src, imageData->dst);
     imageDisplay();
+    imageData->cut = cutRes.clone();
+}
+
+void MainWindow::do_edgeDetection()
+{
+    if(imageData->src.empty()) return;
+    imageData->dst = imageData->src.clone();
+    imageData->cut = imageData->src.clone();
+    ui->image->clear();
+
+    Mat cutRes;
+    cutRes = CVFunction::edgeDetection(imageData->src, imageData->dst, 3);
+    imageDisplay();
+    imageData->cut = cutRes.clone();
+}
+
+void MainWindow::do_thresholding()
+{
+    if(imageData->src.empty()) return;
+    imageData->dst = imageData->src.clone();
+    imageData->cut = imageData->src.clone();
+    ui->image->clear();
+
+    Mat cutRes;
+    cutRes = CVFunction::adaptiveThresholding(imageData->src, imageData->dst);
+    imageDisplay();
+    imageData->cut = cutRes.clone();
 }
 
 
