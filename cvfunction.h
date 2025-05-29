@@ -27,9 +27,6 @@ public:
     static void track(const Mat &ref);
     static Mat faceSearch(const Mat &src, Mat &dst);
     static Mat edgeDetection(const Mat& src, Mat& dst, int kernel_size);
-    static Mat adaptiveThresholding(const Mat& src, Mat& dst,
-                                    int blockSize = 11, double C = 2,
-                                    int adaptiveMethod = ADAPTIVE_THRESH_GAUSSIAN_C,
-                                    int thresholdType = THRESH_BINARY);
+    static Mat grabcutForegroundExtraction(const Mat& src, Mat& dst);
 };
 #endif // CVFUNCTION_H

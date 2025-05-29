@@ -302,7 +302,7 @@ void MainWindow::do_thresholding()
     ui->image->clear();
 
     Mat cutRes;
-    cutRes = CVFunction::adaptiveThresholding(imageData->src, imageData->dst);
+    cutRes = CVFunction::grabcutForegroundExtraction(imageData->src, imageData->dst);
     imageDisplay();
     imageData->cut = cutRes.clone();
 }

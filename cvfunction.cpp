@@ -242,33 +242,42 @@ Mat CVFunction::edgeDetection(const Mat& src, Mat& dst, int kernel_size)
     return croppedImage;
 }
 
-Mat CVFunction::adaptiveThresholding(const Mat& src, Mat& dst,
-                         int blockSize, double C,
-                         int adaptiveMethod ,
-                         int thresholdType)
+Mat CVFunction::grabcutForegroundExtraction(const Mat& src, Mat& dst)
 {
-    // 转换为灰度图
-    Mat srcGray;
-    cvtColor(src, srcGray, COLOR_RGB2GRAY);
+    // 初始矩形区域：图像中心缩小80%
+    int margin = 20;
+    Rect rect(margin, margin, src.cols - 2 * margin, src.rows - 2 * margin);
 
-    // 执行自适应阈值处理
-    Mat binary;
-    adaptiveThreshold(srcGray, binary, 255, adaptiveMethod, thresholdType, blockSize, C);
+    // 初始化 mask
+    Mat mask(src.size(), CV_8UC1, Scalar(GC_BGD));
+    mask(rect).setTo(Scalar(GC_PR_FGD));
 
-    // 寻找轮廓
+    // 初始化模型
+    Mat bgModel, fgModel;
+
+    // 执行 GrabCut 分割
+    grabCut(src, mask, rect, bgModel, fgModel, 5, GC_INIT_WITH_RECT);
+
+    // 转换为前景掩码
+    Mat foregroundMask = (mask == GC_FGD) | (mask == GC_PR_FGD);
+
+    // 提取前景图像
+    Mat foreground;
+    src.copyTo(foreground, foregroundMask);
+
+    // 查找最大轮廓（便于裁剪）
     std::vector<std::vector<Point>> contours;
-    std::vector<Vec4i> hierarchy;
-    findContours(binary, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    findContours(foregroundMask, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
     if (contours.empty()) {
         src.copyTo(dst);
         return src;
     }
 
-    // 寻找最大的轮廓（假设是我们感兴趣的区域）
-    double maxArea = 0;
+    // 找最大轮廓
     int maxIdx = 0;
-    for (size_t i = 0; i < contours.size(); i++) {
+    double maxArea = 0;
+    for (int i = 0; i < contours.size(); ++i) {
         double area = contourArea(contours[i]);
         if (area > maxArea) {
             maxArea = area;
@@ -276,20 +285,17 @@ Mat CVFunction::adaptiveThresholding(const Mat& src, Mat& dst,
         }
     }
 
-    // 获取边界框
-    Rect boundingBox = boundingRect(contours[maxIdx]);
+    Rect bbox = boundingRect(contours[maxIdx]);
+    Mat cropped = src(bbox).clone();
 
-    // 根据边界框剪裁图像
-    Mat croppedImage = src(boundingBox).clone();
+    // 可视化：绘制最大轮廓
+    src.copyTo(dst);
+    drawContours(dst, contours, maxIdx, Scalar(0, 255, 0), 2);
 
-    // 在dst图像上绘制最大轮廓
-    src.copyTo(dst); // 确保dst是src的一个副本
-    Scalar color(0, 255, 0); // 绿色
-    int thickness = 2;
-    drawContours(dst, contours, maxIdx, color, thickness);
-
-    return croppedImage;
+    return cropped;
 }
+
+
 
 
 
